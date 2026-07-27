@@ -1,0 +1,52 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "dotnet: clean",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "clean",
+                "${workspaceFolder}/src/MX.Caching.sln"
+            ]
+        },
+        {
+            "label": "dotnet: build",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/MX.Caching.sln"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "dotnet: test",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "test",
+                "${workspaceFolder}/src/MX.Caching.sln",
+                "--filter",
+                "FullyQualifiedName!~IntegrationTests"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "dotnet: format",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "format",
+                "${workspaceFolder}/src/MX.Caching.sln",
+                "--verify-no-changes"
+            ]
+        }
+    ]
+}

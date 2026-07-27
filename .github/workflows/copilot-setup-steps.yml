@@ -1,0 +1,28 @@
+name: "Copilot Setup Steps"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+permissions: {}
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Shared Copilot setup
+        uses: frasermolyneux/actions/copilot-setup@copilot-setup/v1
+        with:
+          checkout-repo: 'true'
+          checkout-shared-copilot: 'true'
+          setup-dotnet: 'true'
+          dotnet-version: |
+            9.0.x
+            10.0.x

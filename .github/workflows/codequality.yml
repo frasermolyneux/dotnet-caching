@@ -1,0 +1,56 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  schedule:
+    - cron: "15 8 * * 1"
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: frasermolyneux/actions/.github/workflows/codequality.yml@main
+    with:
+      sonar-project-key: frasermolyneux_dotnet-caching
+      sonar-organization: frasermolyneux
+      sonar-host-url: https://sonarcloud.io
+      build-target: dotnet-ci
+      skip-format-check: true
+      dotnet-version: |
+        9.0.x
+        10.0.x
+      src-folder: src
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  devops-secure-scanning:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      security-events: write
+    uses: frasermolyneux/actions/.github/workflows/devops-secure-scanning.yml@main
+  dependency-review:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
+        with:
+          comment-summary-in-pr: always

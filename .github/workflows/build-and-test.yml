@@ -1,0 +1,23 @@
+name: Build and Test
+
+on:
+  push:
+    branches:
+      - feature/**
+      - bugfix/**
+      - hotfix/**
+
+permissions: {}
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: frasermolyneux/actions/dotnet-ci@dotnet-ci/v2
+        with:
+          src-folder: src
+          dotnet-version: |
+            9.0.x
+            10.0.x

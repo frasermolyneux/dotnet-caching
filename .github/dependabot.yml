@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /src
+    schedule:
+      interval: weekly
+      day: sunday
+      time: "08:15"
+      timezone: Etc/UTC
+    assignees:
+      - frasermolyneux
+    groups:
+      all-updates:
+        patterns:
+          - "*"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: sunday
+      time: "08:15"
+      timezone: Etc/UTC
+    assignees:
+      - frasermolyneux
+    groups:
+      all-updates:
+        patterns:
+          - "*"

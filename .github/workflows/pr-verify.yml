@@ -1,0 +1,27 @@
+name: PR Verify
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: frasermolyneux/actions/dotnet-ci@dotnet-ci/v2
+        with:
+          src-folder: src
+          dotnet-version: |
+            9.0.x
+            10.0.x
