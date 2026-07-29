@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Data.Tables" />
+    <ProjectReference Include="..\MX.Caching.Abstractions\MX.Caching.Abstractions.csproj" />
     <ProjectReference Include="..\MX.Caching\MX.Caching.csproj" />
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
