@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using MX.Caching.Abstractions;
+using MX.Caching.TableStorage;
 using Xunit;
 
 namespace MX.Caching.Tests;
@@ -42,6 +43,30 @@ public sealed class ScaffoldTests
         Assert.Equal(1, first);
         Assert.Equal(1, second);
         Assert.Equal(1, calls);
+    }
+
+    /// <summary>
+    /// Verifies rewriting a tagged entry without tags clears the previous tag mapping.
+    /// </summary>
+    [Fact]
+    public async Task SetAsyncWhenReplacingTaggedValueWithoutTagsTryGetReturnsReplacement()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddMxCaching();
+        using var serviceProvider = services.BuildServiceProvider();
+        var cache = serviceProvider.GetRequiredService<IMxCache>();
+        var key = CacheKeyBuilder.Create("v1", "example", "tagged-replacement");
+
+        await cache.SetAsync(
+            key,
+            "tagged",
+            new CachePolicy { Tags = ["example-tag"], Ttl = TimeSpan.FromMinutes(1) });
+        await cache.SetAsync(key, "untagged", new CachePolicy { Ttl = TimeSpan.FromMinutes(1) });
+
+        var result = await cache.TryGetAsync<string>(key);
+
+        Assert.True(result.Found);
+        Assert.Equal("untagged", result.Value);
     }
 
     /// <summary>
@@ -174,20 +199,75 @@ public sealed class ScaffoldTests
     }
 
     /// <summary>
-    /// Verifies that configuration does not silently ignore an unavailable backend.
+    /// Verifies that configuration selects the supported Table Storage backend.
     /// </summary>
     [Fact]
-    public void AddMxCachingWhenBackendIsNotImplementedThrows()
+    public void AddMxCachingWhenTableStorageBackendIsConfiguredRegistersTheDistributedCache()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(
             [
                 new KeyValuePair<string, string?>("MxCaching:Backend", "TableStorage"),
+                new KeyValuePair<string, string?>("MxCaching:TableStorage:Endpoint", "https://example.table.core.windows.net"),
             ])
             .Build();
         var services = new ServiceCollection();
 
-        _ = Assert.Throws<NotSupportedException>(() => services.AddMxCaching(configuration));
+        _ = services.AddMxCaching(configuration);
+
+        using var serviceProvider = services.BuildServiceProvider();
+        _ = Assert.IsType<TableStorageDistributedCache>(serviceProvider.GetRequiredService<IDistributedCache>());
+    }
+
+    /// <summary>
+    /// Verifies that Table Storage registration validates its required options.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void AddMxCachingTableStorageWhenTableNameIsInvalidThrows(string? tableName)
+    {
+        var services = new ServiceCollection();
+        var options = new TableStorageCacheOptions
+        {
+            Endpoint = new Uri("https://example.table.core.windows.net"),
+            TableName = tableName!,
+        };
+
+        _ = Assert.ThrowsAny<ArgumentException>(() => services.AddMxCachingTableStorage(options));
+    }
+
+    /// <summary>
+    /// Verifies that Table Storage registration requires an endpoint.
+    /// </summary>
+    [Fact]
+    public void AddMxCachingTableStorageWhenEndpointIsMissingThrows()
+    {
+        var services = new ServiceCollection();
+        var options = new TableStorageCacheOptions();
+
+        _ = Assert.Throws<ArgumentNullException>(() => services.AddMxCachingTableStorage(options));
+    }
+
+    /// <summary>
+    /// Verifies that Table Storage registration retains a consumer-provided distributed cache.
+    /// </summary>
+    [Fact]
+    public void AddMxCachingTableStorageWhenDistributedCacheIsAlreadyRegisteredPreservesIt()
+    {
+        var existingDistributedCache = new CountingDistributedCache();
+        var services = new ServiceCollection();
+        _ = services.AddSingleton<IDistributedCache>(existingDistributedCache);
+
+        _ = services.AddMxCachingTableStorage(new TableStorageCacheOptions
+        {
+            Endpoint = new Uri("https://example.table.core.windows.net"),
+            TableName = "cacheentries",
+        });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        Assert.Same(existingDistributedCache, serviceProvider.GetRequiredService<IDistributedCache>());
     }
 
     /// <summary>

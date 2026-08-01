@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MX.Caching.Testing", "MX.Ca
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MX.Caching.Tests", "MX.Caching.Tests\MX.Caching.Tests.csproj", "{2BFE3DDE-9F6E-43B5-89B3-5AAC2B8DCD69}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MX.Caching.IntegrationTests", "MX.Caching.IntegrationTests\MX.Caching.IntegrationTests.csproj", "{4D59B7C2-3D82-496F-99B6-203C625497CB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,5 +40,9 @@ Global
 		{2BFE3DDE-9F6E-43B5-89B3-5AAC2B8DCD69}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2BFE3DDE-9F6E-43B5-89B3-5AAC2B8DCD69}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2BFE3DDE-9F6E-43B5-89B3-5AAC2B8DCD69}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D59B7C2-3D82-496F-99B6-203C625497CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D59B7C2-3D82-496F-99B6-203C625497CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D59B7C2-3D82-496F-99B6-203C625497CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D59B7C2-3D82-496F-99B6-203C625497CB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

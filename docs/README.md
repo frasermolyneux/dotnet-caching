@@ -12,9 +12,9 @@
 
 All projects target .NET 9 and .NET 10. Package versions are centrally managed in `Directory.Packages.props`, while `version.json` is the Nerdbank.GitVersioning source for releases.
 
-## Phase 0 Scope
+## Scope
 
-This repository establishes package boundaries, packaging metadata, validation, and release automation. It deliberately does not yet implement caching behavior or Azure Table Storage operations.
+The repository provides cache composition, Azure Table Storage-backed distributed caching, and consumer-facing testing helpers. Azure Table entries persist their effective expiry, optional absolute-expiry cap, and sliding-expiration metadata.
 
 ## Validation
 
@@ -22,4 +22,13 @@ This repository establishes package boundaries, packaging metadata, validation, 
 dotnet build src/MX.Caching.sln
 dotnet test src/MX.Caching.sln --filter "FullyQualifiedName!~IntegrationTests"
 dotnet format src/MX.Caching.sln --verify-no-changes
+```
+
+## Integration Tests
+
+The Azure Table Storage integration tests use the Azurite development-storage endpoint (`UseDevelopmentStorage=true`). Start Azurite before running them locally:
+
+```pwsh
+azurite
+dotnet test src/MX.Caching.IntegrationTests/MX.Caching.IntegrationTests.csproj
 ```

@@ -10,6 +10,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
     <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
     <ProjectReference Include="..\MX.Caching.Abstractions\MX.Caching.Abstractions.csproj" />
+    <ProjectReference Include="..\MX.Caching.TableStorage\MX.Caching.TableStorage.csproj" />
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

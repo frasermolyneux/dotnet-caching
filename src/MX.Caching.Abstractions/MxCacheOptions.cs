@@ -45,6 +45,52 @@ public sealed class MxCacheOptions
     /// Gets or sets the configuration for Azure Table Storage.
     /// </summary>
     public TableStorageCacheOptions TableStorage { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the policy values applied to every cacheable operation.
+    /// </summary>
+    public CachePolicyOptions Policy { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets policy values applied to individual operations, keyed by <c>Client:Method</c>.
+    /// </summary>
+    public Dictionary<string, CachePolicyOptions> OperationPolicies { get; set; } = new(StringComparer.Ordinal);
+}
+
+/// <summary>
+/// Represents optional policy values that overlay a lower-precedence cache policy.
+/// </summary>
+public sealed class CachePolicyOptions
+{
+    /// <summary>
+    /// Gets or sets a value indicating whether caching is enabled.
+    /// </summary>
+    public bool? Enabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the cache tiers used by the operation.
+    /// </summary>
+    public CacheTier? Tier { get; set; }
+
+    /// <summary>
+    /// Gets or sets the default lifetime applied to cached values.
+    /// </summary>
+    public TimeSpan? Ttl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the optional lifetime for the in-process tier.
+    /// </summary>
+    public TimeSpan? L1Ttl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the optional lifetime for the distributed tier.
+    /// </summary>
+    public TimeSpan? L2Ttl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the tags associated with the cached value.
+    /// </summary>
+    public string[]? Tags { get; set; }
 }
 
 /// <summary>
