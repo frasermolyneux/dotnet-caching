@@ -159,15 +159,17 @@ public sealed class TableStorageDistributedCacheAzuriteTests(
     /// Verifies cache values larger than the Azure Table binary-property limit are rejected before storage.
     /// </summary>
     [Fact]
-    public async Task SetAsyncWhenValueExceedsTableStorageLimitThrowsArgumentOutOfRangeException()
+    public async Task SetAsyncWhenValueExceedsTableStorageLimitThrowsCacheValueTooLargeException()
     {
         var cache = fixture.CreateCache();
         var value = new byte[(64 * 1024) + 1];
 
-        var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+        var exception = await Assert.ThrowsAsync<CacheValueTooLargeException>(
             () => cache.SetAsync("oversized-value", value, new DistributedCacheEntryOptions()));
 
         Assert.Equal("value", exception.ParamName);
+        Assert.Equal(value.Length, exception.ValueLength);
+        Assert.Equal(TableStorageDistributedCache.MaximumValueLength, exception.MaximumLength);
     }
 
     /// <summary>
