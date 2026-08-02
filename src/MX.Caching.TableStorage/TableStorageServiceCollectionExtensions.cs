@@ -28,12 +28,15 @@ public static class TableStorageServiceCollectionExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(options.TableName);
 
         services.TryAddSingleton(new TableServiceClient(options.Endpoint, new DefaultAzureCredential()));
+        services.TryAddSingleton<TableStorageCacheMetrics>();
         services.TryAddSingleton<ICacheTagIndex>(serviceProvider => new TableStorageCacheTagIndex(
             serviceProvider.GetRequiredService<TableServiceClient>(),
-            options.TableName));
+            options.TableName,
+            serviceProvider.GetRequiredService<TableStorageCacheMetrics>()));
         services.TryAddSingleton<IDistributedCache>(serviceProvider => new TableStorageDistributedCache(
             serviceProvider.GetRequiredService<TableServiceClient>(),
-            options.TableName));
+            options.TableName,
+            serviceProvider.GetRequiredService<TableStorageCacheMetrics>()));
         return services;
     }
 }

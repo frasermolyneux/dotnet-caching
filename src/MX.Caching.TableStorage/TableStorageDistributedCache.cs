@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using Azure;
@@ -9,7 +10,21 @@ namespace MX.Caching.TableStorage;
 /// <summary>
 /// Stores distributed cache entries in Azure Table Storage.
 /// </summary>
-public sealed class TableStorageDistributedCache : IDistributedCache
+/// <remarks>
+/// <para>The underlying table is created lazily on first use. A transient failure during
+/// table creation does not permanently poison the instance; subsequent operations will
+/// reattempt initialization.</para>
+/// <para>All cache values are limited to <c>64 KB</c> (the Azure Table binary-property
+/// maximum). Writes that exceed this limit throw <see cref="CacheValueTooLargeException"/>
+/// before any network call is made.</para>
+/// <para>All cache entries share the <c>cache</c> partition key. In high-throughput
+/// scenarios consider sharding entries across multiple partitions in a future work item
+/// once a backward-compatible migration strategy is in place.</para>
+/// <para>Expired entries are cleaned up lazily when they are read. A host-driven bulk
+/// cleanup mechanism (e.g. Azure Table Storage lifecycle rules or a background job) is
+/// recommended for workloads that write many short-lived entries.</para>
+/// </remarks>
+public sealed class TableStorageDistributedCache : IDistributedCache, IDisposable
 {
     private const string PartitionKey = "cache";
     private const string ValuePropertyName = "Value";
@@ -18,9 +33,17 @@ public sealed class TableStorageDistributedCache : IDistributedCache
     private const string SlidingExpirationSecondsPropertyName = "SlidingExpirationSeconds";
     private const string CacheEntryVersionPropertyName = "CacheEntryVersion";
     private const long CurrentCacheEntryVersion = 1;
-    private const int MaximumValueLength = 64 * 1024;
+
+    /// <summary>
+    /// Gets the maximum permitted byte length for a single cache entry value.
+    /// This reflects the Azure Table Storage binary-property limit.
+    /// </summary>
+    public const int MaximumValueLength = 64 * 1024;
 
     private readonly TableClient _tableClient;
+    private readonly TableStorageCacheMetrics? _metrics;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private volatile bool _initialized;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TableStorageDistributedCache"/> class.
@@ -28,11 +51,20 @@ public sealed class TableStorageDistributedCache : IDistributedCache
     /// <param name="tableServiceClient">The Azure Table service client.</param>
     /// <param name="tableName">The table used for cache entries.</param>
     public TableStorageDistributedCache(TableServiceClient tableServiceClient, string tableName)
+        : this(tableServiceClient, tableName, null)
+    {
+    }
+
+    internal TableStorageDistributedCache(
+        TableServiceClient tableServiceClient,
+        string tableName,
+        TableStorageCacheMetrics? metrics)
     {
         ArgumentNullException.ThrowIfNull(tableServiceClient);
         ArgumentException.ThrowIfNullOrWhiteSpace(tableName);
 
         _tableClient = tableServiceClient.GetTableClient(tableName);
+        _metrics = metrics;
     }
 
     /// <inheritdoc/>
@@ -45,8 +77,10 @@ public sealed class TableStorageDistributedCache : IDistributedCache
     public async Task<byte[]?> GetAsync(string key, CancellationToken token = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        await EnsureTableExistsAsync(token).ConfigureAwait(false);
+        await EnsureInitializedAsync(token).ConfigureAwait(false);
 
+        var start = Stopwatch.GetTimestamp();
+        var hasError = false;
         try
         {
             var response = await _tableClient.GetEntityAsync<TableEntity>(
@@ -67,6 +101,22 @@ public sealed class TableStorageDistributedCache : IDistributedCache
         {
             return null;
         }
+        catch
+        {
+            hasError = true;
+            throw;
+        }
+        finally
+        {
+            if (_metrics is not null)
+            {
+                _metrics.RecordDuration("get", Stopwatch.GetElapsedTime(start).TotalSeconds);
+                if (hasError)
+                {
+                    _metrics.RecordError("get");
+                }
+            }
+        }
     }
 
     /// <inheritdoc/>
@@ -79,8 +129,10 @@ public sealed class TableStorageDistributedCache : IDistributedCache
     public async Task RefreshAsync(string key, CancellationToken token = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        await EnsureTableExistsAsync(token).ConfigureAwait(false);
+        await EnsureInitializedAsync(token).ConfigureAwait(false);
 
+        var start = Stopwatch.GetTimestamp();
+        var hasError = false;
         try
         {
             var response = await _tableClient.GetEntityAsync<TableEntity>(
@@ -111,6 +163,22 @@ public sealed class TableStorageDistributedCache : IDistributedCache
         catch (RequestFailedException exception) when (exception.Status == 404)
         {
         }
+        catch
+        {
+            hasError = true;
+            throw;
+        }
+        finally
+        {
+            if (_metrics is not null)
+            {
+                _metrics.RecordDuration("refresh", Stopwatch.GetElapsedTime(start).TotalSeconds);
+                if (hasError)
+                {
+                    _metrics.RecordError("refresh");
+                }
+            }
+        }
     }
 
     /// <inheritdoc/>
@@ -123,14 +191,32 @@ public sealed class TableStorageDistributedCache : IDistributedCache
     public async Task RemoveAsync(string key, CancellationToken token = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        await EnsureTableExistsAsync(token).ConfigureAwait(false);
+        await EnsureInitializedAsync(token).ConfigureAwait(false);
 
+        var start = Stopwatch.GetTimestamp();
+        var hasError = false;
         try
         {
             _ = await _tableClient.DeleteEntityAsync(PartitionKey, CreateRowKey(key), ETag.All, token).ConfigureAwait(false);
         }
         catch (RequestFailedException exception) when (exception.Status == 404)
         {
+        }
+        catch
+        {
+            hasError = true;
+            throw;
+        }
+        finally
+        {
+            if (_metrics is not null)
+            {
+                _metrics.RecordDuration("remove", Stopwatch.GetElapsedTime(start).TotalSeconds);
+                if (hasError)
+                {
+                    _metrics.RecordError("remove");
+                }
+            }
         }
     }
 
@@ -153,30 +239,73 @@ public sealed class TableStorageDistributedCache : IDistributedCache
 
         if (value.Length > MaximumValueLength)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(value),
-                value.Length,
-                $"Azure Table Storage cache values cannot exceed {MaximumValueLength} bytes.");
+            _metrics?.RecordOversizeRejection();
+            throw new CacheValueTooLargeException(value.Length, MaximumValueLength);
         }
 
-        await EnsureTableExistsAsync(token).ConfigureAwait(false);
+        await EnsureInitializedAsync(token).ConfigureAwait(false);
 
-        var (expiresUtc, absoluteExpiresUtc, slidingExpirationSeconds) = GetExpiration(options);
-        var entity = new TableEntity(PartitionKey, CreateRowKey(key))
+        var start = Stopwatch.GetTimestamp();
+        var hasError = false;
+        try
         {
-            [ValuePropertyName] = value,
-            [ExpiresUtcPropertyName] = expiresUtc,
-            [AbsoluteExpirationTicksPropertyName] = absoluteExpiresUtc?.UtcTicks,
-            [SlidingExpirationSecondsPropertyName] = slidingExpirationSeconds,
-            [CacheEntryVersionPropertyName] = CurrentCacheEntryVersion,
-        };
+            var (expiresUtc, absoluteExpiresUtc, slidingExpirationSeconds) = GetExpiration(options);
+            var entity = new TableEntity(PartitionKey, CreateRowKey(key))
+            {
+                [ValuePropertyName] = value,
+                [ExpiresUtcPropertyName] = expiresUtc,
+                [AbsoluteExpirationTicksPropertyName] = absoluteExpiresUtc?.UtcTicks,
+                [SlidingExpirationSecondsPropertyName] = slidingExpirationSeconds,
+                [CacheEntryVersionPropertyName] = CurrentCacheEntryVersion,
+            };
 
-        _ = await _tableClient.UpsertEntityAsync(entity, TableUpdateMode.Replace, token).ConfigureAwait(false);
+            _ = await _tableClient.UpsertEntityAsync(entity, TableUpdateMode.Replace, token).ConfigureAwait(false);
+        }
+        catch
+        {
+            hasError = true;
+            throw;
+        }
+        finally
+        {
+            if (_metrics is not null)
+            {
+                _metrics.RecordDuration("set", Stopwatch.GetElapsedTime(start).TotalSeconds);
+                if (hasError)
+                {
+                    _metrics.RecordError("set");
+                }
+            }
+        }
     }
 
-    private async Task EnsureTableExistsAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Ensures the backing table exists before the first storage operation. Uses double-checked
+    /// locking so initialization is attempted at most once per instance under normal conditions.
+    /// A failure leaves the instance in an uninitialised state so the next caller retries.
+    /// </summary>
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
     {
-        _ = await _tableClient.CreateIfNotExistsAsync(cancellationToken).ConfigureAwait(false);
+        if (_initialized)
+        {
+            return;
+        }
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized)
+            {
+                return;
+            }
+
+            _ = await _tableClient.CreateIfNotExistsAsync(cancellationToken).ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _ = _initLock.Release();
+        }
     }
 
     private static string CreateRowKey(string key)
@@ -218,5 +347,11 @@ public sealed class TableStorageDistributedCache : IDistributedCache
     private static DateTimeOffset Min(DateTimeOffset first, DateTimeOffset second)
     {
         return first <= second ? first : second;
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _initLock.Dispose();
     }
 }

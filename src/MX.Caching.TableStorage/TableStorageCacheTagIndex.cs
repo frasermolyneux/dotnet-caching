@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -10,12 +11,19 @@ namespace MX.Caching.TableStorage;
 /// <summary>
 /// Stores shared cache-tag generations and side-index entries in Azure Table Storage.
 /// </summary>
-public sealed class TableStorageCacheTagIndex : ICacheTagIndex
+/// <remarks>
+/// The backing table is created lazily on first use with double-checked locking. A transient
+/// failure during creation does not permanently poison the instance; subsequent calls retry.
+/// </remarks>
+public sealed class TableStorageCacheTagIndex : ICacheTagIndex, IDisposable
 {
     private const string GenerationPartitionKey = "cache-tag-generation";
     private const string EntryPartitionKey = "cache-tag-entry";
     private const string TagPartitionKeyPrefix = "cache-tag-index-";
     private readonly TableClient _tableClient;
+    private readonly TableStorageCacheMetrics? _metrics;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private volatile bool _initialized;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TableStorageCacheTagIndex"/> class.
@@ -23,11 +31,20 @@ public sealed class TableStorageCacheTagIndex : ICacheTagIndex
     /// <param name="tableServiceClient">The Azure Table service client.</param>
     /// <param name="tableName">The table used for cache metadata.</param>
     public TableStorageCacheTagIndex(TableServiceClient tableServiceClient, string tableName)
+        : this(tableServiceClient, tableName, null)
+    {
+    }
+
+    internal TableStorageCacheTagIndex(
+        TableServiceClient tableServiceClient,
+        string tableName,
+        TableStorageCacheMetrics? metrics)
     {
         ArgumentNullException.ThrowIfNull(tableServiceClient);
         ArgumentException.ThrowIfNullOrWhiteSpace(tableName);
 
         _tableClient = tableServiceClient.GetTableClient(tableName);
+        _metrics = metrics;
     }
 
     /// <inheritdoc/>
@@ -35,25 +52,46 @@ public sealed class TableStorageCacheTagIndex : ICacheTagIndex
         IReadOnlyCollection<string> tags,
         CancellationToken cancellationToken = default)
     {
-        await EnsureTableExistsAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
-        var generations = await Task.WhenAll(tags.Select(async tag =>
+        var start = Stopwatch.GetTimestamp();
+        var hasError = false;
+        try
         {
-            try
+            var generations = await Task.WhenAll(tags.Select(async tag =>
             {
-                var response = await _tableClient.GetEntityAsync<TableEntity>(
-                    GenerationPartitionKey,
-                    CreateRowKey(tag),
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-                return new KeyValuePair<string, long>(tag, response.Value.GetInt64("Generation") ?? 0);
-            }
-            catch (RequestFailedException exception) when (exception.Status == 404)
-            {
-                return new KeyValuePair<string, long>(tag, 0);
-            }
-        })).ConfigureAwait(false);
+                try
+                {
+                    var response = await _tableClient.GetEntityAsync<TableEntity>(
+                        GenerationPartitionKey,
+                        CreateRowKey(tag),
+                        cancellationToken: cancellationToken).ConfigureAwait(false);
+                    return new KeyValuePair<string, long>(tag, response.Value.GetInt64("Generation") ?? 0);
+                }
+                catch (RequestFailedException exception) when (exception.Status == 404)
+                {
+                    return new KeyValuePair<string, long>(tag, 0);
+                }
+            })).ConfigureAwait(false);
 
-        return generations.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+            return generations.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        }
+        catch
+        {
+            hasError = true;
+            throw;
+        }
+        finally
+        {
+            if (_metrics is not null)
+            {
+                _metrics.RecordDuration("get_generations", Stopwatch.GetElapsedTime(start).TotalSeconds);
+                if (hasError)
+                {
+                    _metrics.RecordError("get_generations");
+                }
+            }
+        }
     }
 
     /// <inheritdoc/>
@@ -62,32 +100,55 @@ public sealed class TableStorageCacheTagIndex : ICacheTagIndex
         CacheTagEntry entry,
         CancellationToken cancellationToken = default)
     {
-        await EnsureTableExistsAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
-        var mappingEntity = new TableEntity(EntryPartitionKey, CreateRowKey(key))
+        var start = Stopwatch.GetTimestamp();
+        var hasError = false;
+        try
         {
-            ["EffectiveKey"] = entry.EffectiveKey,
-            ["TagGenerations"] = JsonSerializer.Serialize(entry.TagGenerations),
-            ["ExpiresAt"] = entry.ExpiresAt,
-        };
-        _ = await _tableClient.UpsertEntityAsync(mappingEntity, TableUpdateMode.Replace, cancellationToken).ConfigureAwait(false);
-
-        _ = await Task.WhenAll(entry.TagGenerations.Keys.Select(tag =>
-        {
-            var tagEntry = new TableEntity(CreateTagPartitionKey(tag), CreateRowKey(entry.EffectiveKey))
+            var mappingEntity = new TableEntity(EntryPartitionKey, CreateRowKey(key))
             {
                 ["EffectiveKey"] = entry.EffectiveKey,
+                ["TagGenerations"] = JsonSerializer.Serialize(entry.TagGenerations),
                 ["ExpiresAt"] = entry.ExpiresAt,
             };
-            return _tableClient.UpsertEntityAsync(tagEntry, TableUpdateMode.Replace, cancellationToken);
-        })).ConfigureAwait(false);
+            _ = await _tableClient.UpsertEntityAsync(mappingEntity, TableUpdateMode.Replace, cancellationToken).ConfigureAwait(false);
+
+            _ = await Task.WhenAll(entry.TagGenerations.Keys.Select(tag =>
+            {
+                var tagEntry = new TableEntity(CreateTagPartitionKey(tag), CreateRowKey(entry.EffectiveKey))
+                {
+                    ["EffectiveKey"] = entry.EffectiveKey,
+                    ["ExpiresAt"] = entry.ExpiresAt,
+                };
+                return _tableClient.UpsertEntityAsync(tagEntry, TableUpdateMode.Replace, cancellationToken);
+            })).ConfigureAwait(false);
+        }
+        catch
+        {
+            hasError = true;
+            throw;
+        }
+        finally
+        {
+            if (_metrics is not null)
+            {
+                _metrics.RecordDuration("register", Stopwatch.GetElapsedTime(start).TotalSeconds);
+                if (hasError)
+                {
+                    _metrics.RecordError("register");
+                }
+            }
+        }
     }
 
     /// <inheritdoc/>
     public async Task<CacheTagEntry?> GetAsync(string key, CancellationToken cancellationToken = default)
     {
-        await EnsureTableExistsAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
+        var start = Stopwatch.GetTimestamp();
+        var hasError = false;
         try
         {
             var response = await _tableClient.GetEntityAsync<TableEntity>(
@@ -116,13 +177,31 @@ public sealed class TableStorageCacheTagIndex : ICacheTagIndex
         {
             return null;
         }
+        catch
+        {
+            hasError = true;
+            throw;
+        }
+        finally
+        {
+            if (_metrics is not null)
+            {
+                _metrics.RecordDuration("get_entry", Stopwatch.GetElapsedTime(start).TotalSeconds);
+                if (hasError)
+                {
+                    _metrics.RecordError("get_entry");
+                }
+            }
+        }
     }
 
     /// <inheritdoc/>
     public async Task RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
-        await EnsureTableExistsAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
+        var start = Stopwatch.GetTimestamp();
+        var hasError = false;
         try
         {
             _ = await _tableClient.DeleteEntityAsync(
@@ -134,45 +213,83 @@ public sealed class TableStorageCacheTagIndex : ICacheTagIndex
         catch (RequestFailedException exception) when (exception.Status == 404)
         {
         }
+        catch
+        {
+            hasError = true;
+            throw;
+        }
+        finally
+        {
+            if (_metrics is not null)
+            {
+                _metrics.RecordDuration("remove_entry", Stopwatch.GetElapsedTime(start).TotalSeconds);
+                if (hasError)
+                {
+                    _metrics.RecordError("remove_entry");
+                }
+            }
+        }
     }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<string>> InvalidateAsync(string tag, CancellationToken cancellationToken = default)
     {
-        await EnsureTableExistsAsync(cancellationToken).ConfigureAwait(false);
-        await IncrementGenerationAsync(tag, cancellationToken).ConfigureAwait(false);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
-        var tagPartitionKey = CreateTagPartitionKey(tag);
-        var effectiveKeys = new List<string>();
-        await foreach (var entity in _tableClient.QueryAsync<TableEntity>(
-            filter: $"PartitionKey eq '{tagPartitionKey}'",
-            cancellationToken: cancellationToken).ConfigureAwait(false))
+        var start = Stopwatch.GetTimestamp();
+        var hasError = false;
+        try
         {
-            var expiresAt = entity.GetDateTimeOffset("ExpiresAt");
-            if (expiresAt is not null && expiresAt <= DateTimeOffset.UtcNow)
+            await IncrementGenerationAsync(tag, cancellationToken).ConfigureAwait(false);
+
+            var tagPartitionKey = CreateTagPartitionKey(tag);
+            var effectiveKeys = new List<string>();
+            await foreach (var entity in _tableClient.QueryAsync<TableEntity>(
+                filter: $"PartitionKey eq '{tagPartitionKey}'",
+                cancellationToken: cancellationToken).ConfigureAwait(false))
             {
+                var expiresAt = entity.GetDateTimeOffset("ExpiresAt");
+                if (expiresAt is not null && expiresAt <= DateTimeOffset.UtcNow)
+                {
+                    _ = await _tableClient.DeleteEntityAsync(
+                        entity.PartitionKey,
+                        entity.RowKey,
+                        ETag.All,
+                        cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                var effectiveKey = entity.GetString("EffectiveKey");
+                if (effectiveKey is not null)
+                {
+                    effectiveKeys.Add(effectiveKey);
+                }
+
                 _ = await _tableClient.DeleteEntityAsync(
                     entity.PartitionKey,
                     entity.RowKey,
                     ETag.All,
                     cancellationToken).ConfigureAwait(false);
-                continue;
             }
 
-            var effectiveKey = entity.GetString("EffectiveKey");
-            if (effectiveKey is not null)
-            {
-                effectiveKeys.Add(effectiveKey);
-            }
-
-            _ = await _tableClient.DeleteEntityAsync(
-                entity.PartitionKey,
-                entity.RowKey,
-                ETag.All,
-                cancellationToken).ConfigureAwait(false);
+            return [.. effectiveKeys.Distinct(StringComparer.Ordinal)];
         }
-
-        return [.. effectiveKeys.Distinct(StringComparer.Ordinal)];
+        catch
+        {
+            hasError = true;
+            throw;
+        }
+        finally
+        {
+            if (_metrics is not null)
+            {
+                _metrics.RecordDuration("invalidate", Stopwatch.GetElapsedTime(start).TotalSeconds);
+                if (hasError)
+                {
+                    _metrics.RecordError("invalidate");
+                }
+            }
+        }
     }
 
     private async Task IncrementGenerationAsync(string tag, CancellationToken cancellationToken)
@@ -207,19 +324,45 @@ public sealed class TableStorageCacheTagIndex : ICacheTagIndex
                 }
                 catch (RequestFailedException addException) when (addException.Status == 409)
                 {
+                    _metrics?.RecordGenerationRetry();
                 }
             }
             catch (RequestFailedException exception) when (exception.Status == 412)
             {
+                _metrics?.RecordGenerationRetry();
             }
         }
 
         throw new InvalidOperationException($"Unable to advance cache tag generation for '{tag}'.");
     }
 
-    private async Task EnsureTableExistsAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Ensures the backing table exists before the first storage operation. Uses double-checked
+    /// locking so initialization is attempted at most once per instance under normal conditions.
+    /// A failure leaves the instance in an uninitialised state so the next caller retries.
+    /// </summary>
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
     {
-        _ = await _tableClient.CreateIfNotExistsAsync(cancellationToken).ConfigureAwait(false);
+        if (_initialized)
+        {
+            return;
+        }
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized)
+            {
+                return;
+            }
+
+            _ = await _tableClient.CreateIfNotExistsAsync(cancellationToken).ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _ = _initLock.Release();
+        }
     }
 
     private static string CreateTagPartitionKey(string tag)
@@ -230,5 +373,11 @@ public sealed class TableStorageCacheTagIndex : ICacheTagIndex
     private static string CreateRowKey(string value)
     {
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _initLock.Dispose();
     }
 }
