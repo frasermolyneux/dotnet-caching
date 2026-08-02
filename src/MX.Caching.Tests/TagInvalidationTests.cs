@@ -261,9 +261,27 @@ public sealed class TableStorageCacheTagIndexRetryTests
                 It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .Returns(AsyncPageable<TableEntity>.FromPages([]));
 
+        var retryCount = 0L;
+        using var listener = new System.Diagnostics.Metrics.MeterListener();
+        listener.InstrumentPublished = (instrument, l) =>
+        {
+            if (instrument.Meter.Name == "MX.Caching" &&
+                instrument.Name == "mx.cache.storage.generation_retries")
+            {
+                l.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((_, measurement, _, _) =>
+        {
+            _ = Interlocked.Add(ref retryCount, measurement);
+        });
+        listener.Start();
+
         var index = new TableStorageCacheTagIndex(serviceClient.Object, "test", metrics);
 
         _ = await index.InvalidateAsync("metric-retry-tag");
+
+        Assert.Equal(1L, Interlocked.Read(ref retryCount));
     }
 
     private static (Mock<TableServiceClient> ServiceClient, Mock<TableClient> TableClient) CreateMocks()

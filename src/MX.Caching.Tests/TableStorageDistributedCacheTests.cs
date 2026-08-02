@@ -85,8 +85,26 @@ public sealed class TableStorageDistributedCacheTests
         var cache = new TableStorageDistributedCache(serviceClient.Object, "test", metrics);
         var value = new byte[TableStorageDistributedCache.MaximumValueLength + 1];
 
+        var rejectionCount = 0L;
+        using var listener = new System.Diagnostics.Metrics.MeterListener();
+        listener.InstrumentPublished = (instrument, l) =>
+        {
+            if (instrument.Meter.Name == "MX.Caching" &&
+                instrument.Name == "mx.cache.storage.oversize_rejections")
+            {
+                l.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((_, measurement, _, _) =>
+        {
+            _ = Interlocked.Add(ref rejectionCount, measurement);
+        });
+        listener.Start();
+
         _ = await Assert.ThrowsAsync<CacheValueTooLargeException>(
             () => cache.SetAsync("key", value, new DistributedCacheEntryOptions()));
+
+        Assert.Equal(1L, Interlocked.Read(ref rejectionCount));
     }
 
     /// <summary>
