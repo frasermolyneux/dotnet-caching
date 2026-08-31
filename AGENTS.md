@@ -4,7 +4,7 @@ Multi-target .NET library repository for shared caching abstractions, compositio
 
 ## Locations
 
-- Solution: `src/MX.Caching.sln`
+- Solution: `src/MX.Caching.slnx`
 - Packages: `src/MX.Caching.Abstractions`, `src/MX.Caching`, `src/MX.Caching.TableStorage`, `src/MX.Caching.Testing`
 - Unit tests: `src/MX.Caching.Tests`
 - Azurite integration tests: `src/MX.Caching.IntegrationTests`
@@ -13,10 +13,10 @@ Multi-target .NET library repository for shared caching abstractions, compositio
 ## Commands
 
 ```pwsh
-dotnet build src/MX.Caching.sln
-dotnet test src/MX.Caching.sln --filter "FullyQualifiedName!~IntegrationTests"
-dotnet test src/MX.Caching.sln --filter "FullyQualifiedName~MyTestClass.MyTestMethod"
-dotnet format src/MX.Caching.sln --verify-no-changes
+dotnet build src/MX.Caching.slnx
+dotnet test src/MX.Caching.slnx --filter "FullyQualifiedName!~IntegrationTests"
+dotnet test src/MX.Caching.slnx --filter "FullyQualifiedName~MyTestClass.MyTestMethod"
+dotnet format src/MX.Caching.slnx --verify-no-changes
 ```
 
 ## Constraints

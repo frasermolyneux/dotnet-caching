@@ -5,7 +5,7 @@ This repository publishes the MX caching package family: public abstractions, co
 ## Runtime and layout
 
 - SDK: `10.0.301` from `global.json`; projects inherit `net9.0;net10.0` from `Directory.Build.props`.
-- Solution: `src/MX.Caching.sln`.
+- Solution: `src/MX.Caching.slnx`.
 - Packable projects: `MX.Caching.Abstractions`, `MX.Caching`, `MX.Caching.TableStorage`, and `MX.Caching.Testing`.
 - Unit tests: `MX.Caching.Tests`; Azurite-backed tests: `MX.Caching.IntegrationTests`.
 
@@ -21,10 +21,10 @@ This repository publishes the MX caching package family: public abstractions, co
 ## Validation
 
 ```pwsh
-dotnet build src/MX.Caching.sln
-dotnet test src/MX.Caching.sln --filter "FullyQualifiedName!~IntegrationTests"
-dotnet test src/MX.Caching.sln --filter "FullyQualifiedName~MyTestClass.MyTestMethod"
-dotnet format src/MX.Caching.sln --verify-no-changes
+dotnet build src/MX.Caching.slnx
+dotnet test src/MX.Caching.slnx --filter "FullyQualifiedName!~IntegrationTests"
+dotnet test src/MX.Caching.slnx --filter "FullyQualifiedName~MyTestClass.MyTestMethod"
+dotnet format src/MX.Caching.slnx --verify-no-changes
 ```
 
 Run `src/MX.Caching.IntegrationTests` only when the changed behavior requires Azurite. See `docs/README.md` for package boundaries and integration-test setup.
