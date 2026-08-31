@@ -14,15 +14,11 @@ permissions: {}
 jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    permissions: {}
     steps:
-      - name: Shared Copilot setup
-        uses: frasermolyneux/actions/copilot-setup@copilot-setup/v1
+      - name: Set up .NET SDK
+        uses: frasermolyneux/actions/copilot-setup@copilot-setup/v2
         with:
-          checkout-repo: 'true'
-          checkout-shared-copilot: 'true'
+          checkout-repo: 'false'
           setup-dotnet: 'true'
-          dotnet-version: |
-            9.0.x
-            10.0.x
+          dotnet-version: '10.0.301'
