@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="MX.Caching.Abstractions/MX.Caching.Abstractions.csproj" />
+  <Project Path="MX.Caching.IntegrationTests/MX.Caching.IntegrationTests.csproj" />
+  <Project Path="MX.Caching.TableStorage/MX.Caching.TableStorage.csproj" />
+  <Project Path="MX.Caching.Testing/MX.Caching.Testing.csproj" />
+  <Project Path="MX.Caching.Tests/MX.Caching.Tests.csproj" />
+  <Project Path="MX.Caching/MX.Caching.csproj" />
+</Solution>
