@@ -18,10 +18,29 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      test_report: ${{ steps.shared-tests-1.outputs.test-report }}
     steps:
-      - uses: frasermolyneux/actions/dotnet-ci@dotnet-ci/v2
+      - id: shared-tests-1
+        uses: frasermolyneux/actions/dotnet-ci@dotnet-ci/v2.1
         with:
+          test-reporting: "true"
           src-folder: src
           dotnet-version: |
             9.0.x
             10.0.x
+
+  test-results:
+    name: Test results summary
+    if: always() && github.event.pull_request.draft == false
+    needs: [build-and-test]
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    concurrency:
+      group: test-results-${{ github.repository }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    steps:
+      - uses: frasermolyneux/actions/test-results-summary@test-results-summary/v1
+        with:
+          jobs: ${{ toJSON(needs) }}
