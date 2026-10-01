@@ -15,8 +15,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: frasermolyneux/actions/dotnet-ci@dotnet-ci/v2
+      - uses: frasermolyneux/actions/dotnet-ci@dotnet-ci/v2.1
         with:
+          test-reporting: "true"
           src-folder: src
           dotnet-version: |
             9.0.x
