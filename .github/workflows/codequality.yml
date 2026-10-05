@@ -29,6 +29,23 @@ jobs:
       expected-sha: ${{ github.sha }}
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  codeql:
+    if: github.event.repository.private == false && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: frasermolyneux/actions/.github/workflows/codequality.yml@37c6a8a3461d7cfe61907b4ef450a248578a9009
+    with:
+      skip-sonar: true
+      sonar-project-key: frasermolyneux_dotnet-caching
+      test-reporting: true
+      build-target: dotnet-ci
+      skip-format-check: true
+      dotnet-version: |
+        9.0.x
+        10.0.x
+      src-folder: src
   devops-secure-scanning:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     permissions:

@@ -31,7 +31,13 @@ import verification is accepted. Collection is not claimed as provider import.
 The source-bound proof artifact expires after 14 days.
 
 This is the Sonar component of the estate alignment, not completion of the full
-analysis profile. Existing secure scanning, dependency review, separate build/test
+profile. The existing public C# CodeQL producer remains in a separate CodeQL-only
+call pinned to the reviewed shared workflow source, with no Sonar token or duplicate
+Sonar task. Its original SDK/build/test selections are unchanged. It must not be
+removed until the production native engine has actually replaced it and its required
+current-source results are verified.
+
+Existing secure scanning, dependency review, separate build/test
 and Azurite integration behavior remain unchanged. Full-profile daily freshness,
 weekly reuse, standard dispatch and other scanner migration remain workstream items.
 Do not change the Terraform-owned profile variables or repository protections here.
