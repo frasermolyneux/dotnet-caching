@@ -11,6 +11,7 @@
 ## Documentation
 
 * [Repository Guide](docs/README.md) - Project structure, package boundaries, and validation commands
+* [Source-bound Sonar analysis](docs/README.md#source-bound-sonar-analysis) - Released scanner, catalog configuration, coverage evidence, and remaining estate alignment
 
 ## Overview
 

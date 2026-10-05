@@ -27,6 +27,7 @@ dotnet format src/MX.Caching.slnx --verify-no-changes
 - Keep package identities, target frameworks, package READMEs, and `version.json` behavior unchanged unless explicitly requested.
 - Build generates packages; do not publish them during validation.
 - Run Azurite-backed integration tests only when Table Storage behavior requires them.
+- Sonar uses the released source-bound workflow and catalog-projected analysis inputs; keep its protected check and unit selection intact. Preserve the separate existing CodeQL-only producer until its actual native replacement is verified. Full-profile migration is not yet complete (see the repository guide).
 
 ## Documentation
 
