@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-    uses: frasermolyneux/actions/.github/workflows/repository-analysis-sonar.yml@repository-analysis-sonar/v1.0.0
+    uses: frasermolyneux/actions/.github/workflows/repository-analysis-sonar.yml@repository-analysis-sonar/v1.0.1
     with:
       profile: ${{ vars.REPOSITORY_ANALYSIS_PROFILE }}
       recipe: ${{ vars.REPOSITORY_ANALYSIS_SONAR_RECIPE }}

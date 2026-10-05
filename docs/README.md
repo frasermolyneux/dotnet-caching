@@ -15,7 +15,7 @@ All projects target .NET 9 and .NET 10. Package versions are centrally managed i
 
 ## Source-bound Sonar analysis
 
-`codequality.yml` uses the immutable `repository-analysis-sonar/v1.0.0` workflow
+`codequality.yml` uses the immutable `repository-analysis-sonar/v1.0.1` workflow
 from `frasermolyneux/actions`, with profile, recipe and build inputs projected by
 the `platform-workloads` catalog. It retains the protected
 `quality / Code Quality` check, main/ready-PR/weekly triggers, SDKs, source directory
