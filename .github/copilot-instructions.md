@@ -17,6 +17,7 @@ This repository publishes the MX caching package family: public abstractions, co
 - Central package management is enabled in `Directory.Packages.props`; do not add versions to project `PackageReference` entries.
 - Package IDs, target frameworks, package READMEs, generated package metadata, and NBGV configuration in `version.json` are release boundaries.
 - Never add credentials or publish packages during routine validation.
+- Sonar uses the immutable source-bound workflow with Terraform-owned catalog inputs. Preserve its protected check and unit selection; do not call collected PR coverage server-imported or the partial estate migration complete (see `docs/README.md`).
 
 ## Validation
 

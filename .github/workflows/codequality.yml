@@ -13,7 +13,7 @@ permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:
@@ -21,19 +21,12 @@ jobs:
     permissions:
       contents: read
       actions: read
-      security-events: write
-    uses: frasermolyneux/actions/.github/workflows/codequality.yml@main
+    uses: frasermolyneux/actions/.github/workflows/repository-analysis-sonar.yml@repository-analysis-sonar/v1.0.0
     with:
-      test-reporting: true
-      sonar-project-key: frasermolyneux_dotnet-caching
-      sonar-organization: frasermolyneux
-      sonar-host-url: https://sonarcloud.io
-      build-target: dotnet-ci
-      skip-format-check: true
-      dotnet-version: |
-        9.0.x
-        10.0.x
-      src-folder: src
+      profile: ${{ vars.REPOSITORY_ANALYSIS_PROFILE }}
+      recipe: ${{ vars.REPOSITORY_ANALYSIS_SONAR_RECIPE }}
+      build: ${{ vars.REPOSITORY_ANALYSIS_BUILD }}
+      expected-sha: ${{ github.sha }}
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   devops-secure-scanning:
