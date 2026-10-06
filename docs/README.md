@@ -37,6 +37,15 @@ Sonar task. Its original SDK/build/test selections are unchanged. It must not be
 removed until the production native engine has actually replaced it and its required
 current-source results are verified.
 
+The separate `native-codeql` job now invokes the released
+`repository-analysis-codeql/v1.0.0` component with the same catalog profile,
+build recipe and source directory. It analyzes the declared Actions and C#
+capabilities and requires byte-bound source extraction plus completed current-source
+GitHub processing. It receives no Sonar credential. The existing CodeQL-only call
+remains during genuine PR/default-branch replacement acceptance; its removal is a
+subsequent governed change, not assumed from a release tag or a passing fixture.
+Native component acceptance alone is not full-profile freshness evidence.
+
 Existing secure scanning, dependency review, separate build/test
 and Azurite integration behavior remain unchanged. Full-profile daily freshness,
 weekly reuse, standard dispatch and other scanner migration remain workstream items.

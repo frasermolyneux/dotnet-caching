@@ -29,6 +29,18 @@ jobs:
       expected-sha: ${{ github.sha }}
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  native-codeql:
+    if: github.event.repository.private == false && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: frasermolyneux/actions/.github/workflows/repository-analysis-codeql.yml@repository-analysis-codeql/v1.0.0
+    with:
+      profile: ${{ vars.REPOSITORY_ANALYSIS_PROFILE }}
+      build: ${{ vars.REPOSITORY_ANALYSIS_BUILD }}
+      source-directory: ${{ fromJSON(vars.REPOSITORY_ANALYSIS_SONAR_RECIPE).sourceDirectory }}
+      expected-sha: ${{ github.sha }}
   codeql:
     if: github.event.repository.private == false && (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     permissions:

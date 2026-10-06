@@ -28,6 +28,7 @@ dotnet format src/MX.Caching.slnx --verify-no-changes
 - Build generates packages; do not publish them during validation.
 - Run Azurite-backed integration tests only when Table Storage behavior requires them.
 - Sonar uses the released source-bound workflow and catalog-projected analysis inputs; keep its protected check and unit selection intact. Preserve the separate existing CodeQL-only producer until its actual native replacement is verified. Full-profile migration is not yet complete (see the repository guide).
+- The released `native-codeql` component uses the same catalog declarations without a Sonar token. Retain the original producer until genuine current-head and default-branch native processing is verified; component evidence is not full-profile acceptance.
 
 ## Documentation
 
