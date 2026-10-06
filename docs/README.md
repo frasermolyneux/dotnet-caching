@@ -15,7 +15,7 @@ All projects target .NET 9 and .NET 10. Package versions are centrally managed i
 
 ## Source-bound Sonar analysis
 
-`codequality.yml` uses the immutable `repository-analysis-sonar/v1.0.1` workflow
+`codequality.yml` uses the immutable `repository-analysis-sonar/v1.1.0` workflow
 from `frasermolyneux/actions`, with profile, recipe and build inputs projected by
 the `platform-workloads` catalog. It retains the protected
 `quality / Code Quality` check, main/ready-PR/weekly triggers, SDKs, source directory
@@ -29,6 +29,15 @@ requires a completed same-source Sonar task. Default-branch coverage import is
 independently checked; PR coverage remains collected until PR-specific server
 import verification is accepted. Collection is not claimed as provider import.
 The source-bound proof artifact expires after 14 days.
+
+The producer additionally verifies genuinely analyzed maintained-file counts and
+the raw unresolved issue total for the same completed analysis. Default evidence
+binds the latest exact analysis ID/revision; PR evidence binds the actual merge
+checkout and receipt task before and after reads using Execute Analysis and Browse
+permissions only. Queued or superseding project analyses fail explicitly instead
+of borrowing another task's metadata. Counts are provider source metadata, not
+byte-hash attestation or coverage percentages, and existing backlog is not a new
+merge gate. Immutable foreign execution and default import remain acceptance gates.
 
 This is the Sonar component of the estate alignment, not completion of the full
 profile. The existing public C# CodeQL producer remains in a separate CodeQL-only
