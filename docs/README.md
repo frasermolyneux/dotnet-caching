@@ -40,19 +40,21 @@ byte-hash attestation or coverage percentages, and existing backlog is not a new
 merge gate. Immutable foreign execution and default import remain acceptance gates.
 
 This is the Sonar component of the estate alignment, not completion of the full
-profile. The existing public C# CodeQL producer remains in a separate CodeQL-only
-call pinned to the reviewed shared workflow source, with no Sonar token or duplicate
-Sonar task. Its original SDK/build/test selections are unchanged. It must not be
-removed until the production native engine has actually replaced it and its required
-current-source results are verified.
+profile. Public native analysis uses the independently accepted released component,
+with no Sonar token or duplicate Sonar task.
 
 The separate `native-codeql` job now invokes the released
 `repository-analysis-codeql/v1.0.0` component with the same catalog profile,
 build recipe and source directory. It analyzes the declared Actions and C#
 capabilities and requires byte-bound source extraction plus completed current-source
-GitHub processing. It receives no Sonar credential. The existing CodeQL-only call
-remains during genuine PR/default-branch replacement acceptance; its removal is a
-subsequent governed change, not assumed from a release tag or a passing fixture.
+GitHub processing. It receives no Sonar credential. The original CodeQL-only call
+is retired after actual foreign PR run `37546285453` and merged-default run
+`37547225641` verified source/definition identities, raw artifact receipts and
+completed native processing. At accepted default source
+`7f938a740a7cf12cec47c6280f176099a4741808`, both capabilities had zero findings:
+7 workflow files/17 rules and 33 C# files/52 rules. This evidence is not inferred
+from a release tag or a passing fixture. Current-head protected checks and review
+must also pass for the retirement change.
 Native component acceptance alone is not full-profile freshness evidence.
 
 Existing secure scanning, dependency review, separate build/test
