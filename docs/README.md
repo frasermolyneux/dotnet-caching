@@ -15,7 +15,7 @@ All projects target .NET 9 and .NET 10. Package versions are centrally managed i
 
 ## Source-bound Sonar analysis
 
-`codequality.yml` uses the immutable `repository-analysis-sonar/v1.1.2` workflow
+`codequality.yml` uses the immutable `repository-analysis-sonar/v1.1.3` workflow
 from `frasermolyneux/actions`, with profile, recipe and build inputs projected by
 the `platform-workloads` catalog. It retains the protected
 `quality / Code Quality` check, main/ready-PR/weekly triggers, SDKs, source directory
@@ -43,7 +43,11 @@ scanner completeness. PR facts cannot establish default freshness.
 
 Queued or superseding project analyses, incomplete paging, unowned selected files
 and provider errors still fail explicitly rather than borrowing another task's
-metadata or default data. Raw findings are scoped to the current PR response or
+metadata or default data. Otherwise valid same-PR metadata may settle to the
+verified task/source within the existing absolute two-minute facts deadline.
+Every wait rechecks the successful own task and empty project queue; both settled
+snapshots must remain identical. No stale snapshot or deadline reset is accepted.
+Raw findings are scoped to the current PR response or
 default backlog, not a new merge gate. Metadata counts are not provider file-byte
 attestation or coverage percentages. The outer `proof.scope` remains
 `sonar-task-and-selected-coverage-only` with `fullProfileEvidence: false`;
