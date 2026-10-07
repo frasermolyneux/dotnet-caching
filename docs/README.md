@@ -15,7 +15,7 @@ All projects target .NET 9 and .NET 10. Package versions are centrally managed i
 
 ## Source-bound Sonar analysis
 
-`codequality.yml` uses the immutable `repository-analysis-sonar/v1.1.0` workflow
+`codequality.yml` uses the immutable `repository-analysis-sonar/v1.1.2` workflow
 from `frasermolyneux/actions`, with profile, recipe and build inputs projected by
 the `platform-workloads` catalog. It retains the protected
 `quality / Code Quality` check, main/ready-PR/weekly triggers, SDKs, source directory
@@ -30,14 +30,24 @@ independently checked; PR coverage remains collected until PR-specific server
 import verification is accepted. Collection is not claimed as provider import.
 The source-bound proof artifact expires after 14 days.
 
-The producer additionally verifies genuinely analyzed maintained-file counts and
-the raw unresolved issue total for the same completed analysis. Default evidence
-binds the latest exact analysis ID/revision; PR evidence binds the actual merge
-checkout and receipt task before and after reads using Execute Analysis and Browse
-permissions only. Queued or superseding project analyses fail explicitly instead
-of borrowing another task's metadata. Counts are provider source metadata, not
-byte-hash attestation or coverage percentages, and existing backlog is not a new
-merge gate. Immutable foreign execution and default import remain acceptance gates.
+The producer additionally verifies source/finding facts for the same completed
+analysis. Default `proof.facts.scope: branch-source-and-findings` requires positive
+maintained-file counts for every selected Sonar capability and binds the latest
+exact analysis ID/revision. PR `proof.facts.scope: pull-request-incremental` binds
+the actual merge checkout and receipt task before and after reads using Execute
+Analysis and Browse only. Its whole-branch `proof.facts.sourceCoverage` is explicitly
+null, mirrored at `proof.sourceCoverage`, with status `incremental-pr-only` and a
+visible limitation; only actually returned metadata contributes to reported file
+counts. An empty incremental PR population is not zero analyzed source or full
+scanner completeness. PR facts cannot establish default freshness.
+
+Queued or superseding project analyses, incomplete paging, unowned selected files
+and provider errors still fail explicitly rather than borrowing another task's
+metadata or default data. Raw findings are scoped to the current PR response or
+default backlog, not a new merge gate. Metadata counts are not provider file-byte
+attestation or coverage percentages. The outer `proof.scope` remains
+`sonar-task-and-selected-coverage-only` with `fullProfileEvidence: false`;
+immutable foreign execution and default import remain acceptance gates.
 
 This is the Sonar component of the estate alignment, not completion of the full
 profile. Public native analysis uses the independently accepted released component,
@@ -53,8 +63,12 @@ is retired after actual foreign PR run `37546285453` and merged-default run
 completed native processing. At accepted default source
 `7f938a740a7cf12cec47c6280f176099a4741808`, both capabilities had zero findings:
 7 workflow files/17 rules and 33 C# files/52 rules. This evidence is not inferred
-from a release tag or a passing fixture. Current-head protected checks and review
-must also pass for the retirement change.
+from a release tag or a passing fixture. Retirement passed fresh protected checks
+and review through `frasermolyneux/dotnet-caching#22`; actual post-retirement
+default run `37574765205` at `87d94780aa42ecedb9a6cfcc05f7f8bc2e8f53c5`
+independently verified raw receipts and completed processing with the same
+capability/rule counts and zero findings. No analysis history or protection was
+deleted to permit the transition.
 Native component acceptance alone is not full-profile freshness evidence.
 
 Existing secure scanning, dependency review, separate build/test
