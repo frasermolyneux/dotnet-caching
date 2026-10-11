@@ -35,7 +35,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: frasermolyneux/actions/.github/workflows/repository-analysis-codeql.yml@repository-analysis-codeql/v1.0.0
+    uses: frasermolyneux/actions/.github/workflows/repository-analysis-codeql.yml@repository-analysis-codeql/v1.0.5
     with:
       profile: ${{ vars.REPOSITORY_ANALYSIS_PROFILE }}
       build: ${{ vars.REPOSITORY_ANALYSIS_BUILD }}
