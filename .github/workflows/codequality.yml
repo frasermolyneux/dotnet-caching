@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-    uses: frasermolyneux/actions/.github/workflows/repository-analysis-sonar.yml@repository-analysis-sonar/v1.1.3
+    uses: frasermolyneux/actions/.github/workflows/repository-analysis-sonar.yml@repository-analysis-sonar/v1.2.1
     with:
       profile: ${{ vars.REPOSITORY_ANALYSIS_PROFILE }}
       recipe: ${{ vars.REPOSITORY_ANALYSIS_SONAR_RECIPE }}
@@ -35,7 +35,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: frasermolyneux/actions/.github/workflows/repository-analysis-codeql.yml@repository-analysis-codeql/v1.0.5
+    uses: frasermolyneux/actions/.github/workflows/repository-analysis-codeql.yml@repository-analysis-codeql/v1.0.7
     with:
       profile: ${{ vars.REPOSITORY_ANALYSIS_PROFILE }}
       build: ${{ vars.REPOSITORY_ANALYSIS_BUILD }}
