@@ -15,7 +15,7 @@ All projects target .NET 9 and .NET 10. Package versions are centrally managed i
 
 ## Source-bound Sonar analysis
 
-`codequality.yml` uses the immutable `repository-analysis-sonar/v1.1.3` workflow
+`codequality.yml` uses the immutable `repository-analysis-sonar/v1.2.2` workflow
 from `frasermolyneux/actions`, with profile, recipe and build inputs projected by
 the `platform-workloads` catalog. It retains the protected
 `quality / Code Quality` check, main/ready-PR/weekly triggers, SDKs, source directory
@@ -58,7 +58,7 @@ profile. Public native analysis uses the independently accepted released compone
 with no Sonar token or duplicate Sonar task.
 
 The separate `native-codeql` job now invokes the released
-`repository-analysis-codeql/v1.0.0` component with the same catalog profile,
+`repository-analysis-codeql/v1.0.8` component with the same catalog profile,
 build recipe and source directory. It analyzes the declared Actions and C#
 capabilities and requires byte-bound source extraction plus completed current-source
 GitHub processing. It receives no Sonar credential. The original CodeQL-only call
