@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-    uses: frasermolyneux/actions/.github/workflows/repository-analysis-sonar.yml@repository-analysis-sonar/v1.3.0
+    uses: frasermolyneux/actions/.github/workflows/repository-analysis-sonar.yml@a6271c58ed8e8f3b6fbdb738ac7566863fdc38c8 # repository-analysis-sonar/v1.4.0
     with:
       profile: ${{ vars.REPOSITORY_ANALYSIS_PROFILE }}
       recipe: ${{ vars.REPOSITORY_ANALYSIS_SONAR_RECIPE }}
@@ -35,7 +35,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: frasermolyneux/actions/.github/workflows/repository-analysis-codeql.yml@repository-analysis-codeql/v1.0.8
+    uses: frasermolyneux/actions/.github/workflows/repository-analysis-codeql.yml@a6271c58ed8e8f3b6fbdb738ac7566863fdc38c8 # repository-analysis-codeql/v1.1.0
     with:
       profile: ${{ vars.REPOSITORY_ANALYSIS_PROFILE }}
       build: ${{ vars.REPOSITORY_ANALYSIS_BUILD }}
@@ -48,7 +48,7 @@ jobs:
       actions: read
       id-token: write
       security-events: write
-    uses: frasermolyneux/actions/.github/workflows/devops-secure-scanning.yml@main
+    uses: frasermolyneux/actions/.github/workflows/devops-secure-scanning.yml@a6271c58ed8e8f3b6fbdb738ac7566863fdc38c8 # devops-secure-scanning/v1.0.0
   dependency-review:
     if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
