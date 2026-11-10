@@ -80,6 +80,20 @@ and Azurite integration behavior remain unchanged. Full-profile daily freshness,
 weekly reuse, standard dispatch and other scanner migration remain workstream items.
 Do not change the Terraform-owned profile variables or repository protections here.
 
+## NuGet publishing
+
+`release-publish-nuget.yml` uses NuGet Trusted Publishing with the `NuGet`
+environment and the non-secret `NUGET_USER` variable. The publish job requests
+`id-token: write`; it does not consume a stored `NUGET_API_KEY`. The NuGet trust
+policy must match this repository, workflow filename and environment.
+
+Publishing still follows a successful `Release - Version and Tag` producer,
+requires a `v*` tag on its source commit, and downloads `nuget-packages` from that
+producer run. For acceptance, dispatch `release-version-and-tag.yml` on `main`
+after the caller is deployed. Keep normal Nerdbank.GitVersioning versions and
+release gates; verify newly accepted packages and symbols rather than treating
+duplicate-package skips as proof of publishing.
+
 ## Scope
 
 The repository provides cache composition, Azure Table Storage-backed distributed caching, and consumer-facing testing helpers. Azure Table entries persist their effective expiry, optional absolute-expiry cap, and sliding-expiration metadata.
